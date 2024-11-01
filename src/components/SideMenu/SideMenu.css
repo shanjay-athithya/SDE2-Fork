@@ -38,7 +38,7 @@ white-space: nowrap;
 
 .side-menu-container .active:before {
 	content: "";
-	border-left: 3px solid #1db954;
+	border-left: 3px solid 	#fb6f9e;
 	position: relative;
 	left: -18px;
 }

@@ -6,7 +6,7 @@
 }
 
 .main-pause-play-btn {
-  background: #1db954;
+  background: 	#fb6f9e;
   font-family: 'Proxima Nova', Georgia, sans-serif;
   color: #fff;
   border: none;
@@ -33,7 +33,7 @@
 }
 
 .active.user-song-item {
-  color: #1db954;
+  color: 	#fb6f9e;
   background: rgb(51, 51, 51);
 }
 

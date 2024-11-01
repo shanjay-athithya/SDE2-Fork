@@ -1,48 +1,204 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
+import * as faceapi from "face-api.js";
 import "./TrackSearch.css";
 
 class TrackSearch extends Component {
   state = {
-    searchTerm: ""
+    searchTerm: "",
+    language: null,
+    initialized: false,
   };
 
-  updateSearchTerm = e => {
+  videoRef = React.createRef();
+  canvasRef = React.createRef();
+
+  componentDidMount() {
+    this.loadModels(); // Load models when the component mounts
+  }
+
+  checkWebGLSupport = () => {
+    const canvas = document.createElement("canvas");
+    const gl =
+      canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    return !!gl; // Returns true if WebGL is supported
+  };
+
+  loadModels = async () => {
+    if (!this.checkWebGLSupport()) {
+      console.error("WebGL is not supported on this device.");
+      return; // Optionally display a message to the user
+    }
+
+    const MODEL_URL = "/models";
+    try {
+      await faceapi.nets.tinyFaceDetector.loadFromUri(
+        `${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`
+      );
+      await faceapi.nets.faceLandmark68Net.loadFromUri(
+        `${MODEL_URL}/face_landmark_68_model-weights_manifest.json`
+      );
+      await faceapi.nets.faceExpressionNet.loadFromUri(
+        `${MODEL_URL}/face_expression_model-weights_manifest.json`
+      );
+      this.setState({ initialized: true });
+    } catch (error) {
+      console.error("Error loading models:", error);
+    }
+  };
+
+  startVideo = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (this.videoRef.current) {
+        this.videoRef.current.srcObject = stream;
+        this.videoRef.current.onloadedmetadata = () => {
+          this.videoRef.current.play();
+        };
+      } else {
+        console.error("Video element not found.");
+      }
+    } catch (err) {
+      console.error("Error accessing webcam:", err);
+    }
+  };
+
+  handleVideoPlay = () => {
+    if (!this.canvasRef.current) return;
+
+    const canvas = faceapi.createCanvasFromMedia(this.videoRef.current);
+    this.canvasRef.current.innerHTML = ""; // Clear any previous canvas
+    this.canvasRef.current.appendChild(canvas);
+
+    const displaySize = {
+      width: this.videoRef.current.videoWidth,
+      height: this.videoRef.current.videoHeight,
+    };
+    faceapi.matchDimensions(canvas, displaySize);
+
+    this.detectEmotions(canvas, displaySize);
+  };
+
+  detectEmotions = (canvas, displaySize) => {
+    setInterval(async () => {
+      const detections = await faceapi
+        .detectAllFaces(
+          this.videoRef.current,
+          new faceapi.TinyFaceDetectorOptions()
+        )
+        .withFaceLandmarks()
+        .withFaceExpressions();
+
+      const resizedDetections = faceapi.resizeResults(detections, displaySize);
+      const context = canvas.getContext("2d");
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      faceapi.draw.drawDetections(canvas, resizedDetections);
+      faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+      faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
+
+      resizedDetections.forEach((detection) => {
+        const { expressions } = detection;
+        const dominantEmotion = Object.keys(expressions).reduce((a, b) =>
+          expressions[a] > expressions[b] ? a : b
+        );
+
+        if (dominantEmotion === "happy" || dominantEmotion === "sad") {
+          this.handleEmotionSearch(dominantEmotion);
+        }
+      });
+    }, 1000);
+  };
+
+  handleEmotionSearch = (emotion) => {
+    const searchTerm = emotion === "happy" ? "melody" : "motivational";
+    const query = `${searchTerm} ${this.state.language || "Tamil"} songs`;
+    console.log("Search term based on emotion:", query);
+    this.props.searchSongs(query);
+  };
+
+  updateSearchTerm = (e) => {
     this.setState({
-      searchTerm: e.target.value
+      searchTerm: e.target.value,
     });
+  };
+
+  setLanguage = (language) => {
+    this.setState(
+      {
+        searchTerm: language,
+        language,
+      },
+      () => {
+        if (!this.state.initialized) {
+          this.loadModels().then(this.startVideo); // Load models and start video on language selection
+        } else {
+          this.startVideo(); // Start video if already initialized
+        }
+      }
+    );
   };
 
   render() {
     return (
       <div className="track-search-container">
-        <form
-          onSubmit={() => {
-            this.props.searchSongs(this.state.searchTerm, this.props.token);
-          }}
-        >
+        <form onSubmit={(e) => e.preventDefault()}>
           <input
             onChange={this.updateSearchTerm}
             type="text"
             placeholder="Search..."
+            value={this.state.searchTerm}
           />
-          <button
-            onClick={e => {
-              e.preventDefault();
-              this.props.searchSongs(this.state.searchTerm, this.props.token);
-            }}
-          >
+          <div className="language-options">
+            {["Tamil", "Telugu", "Hindi", "English"].map((lang) => (
+              <label key={lang}>
+                <input
+                  type="radio"
+                  name="language"
+                  onChange={() => this.setLanguage(lang)}
+                  checked={this.state.searchTerm === lang}
+                />
+                {lang}
+              </label>
+            ))}
+          </div>
+          <button onClick={() => this.setLanguage(this.state.language)}>
             <i className="fa fa-search search" aria-hidden="true" />
           </button>
         </form>
+
+        {this.state.language && this.state.initialized && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ position: "relative" }}>
+              <video
+                ref={this.videoRef}
+                onPlay={this.handleVideoPlay}
+                autoPlay
+                muted
+                width="720"
+                height="560"
+                style={{ borderRadius: "10px" }}
+              />
+            </div>
+            <div
+              ref={this.canvasRef}
+              style={{ position: "absolute", top: 0, left: 0 }}
+            />
+          </div>
+        )}
       </div>
     );
   }
 }
 
 TrackSearch.propTypes = {
-  searchSongs: PropTypes.func,
-  token: PropTypes.string
+  searchSongs: PropTypes.func.isRequired,
 };
 
 export default TrackSearch;
