@@ -41,6 +41,9 @@ class TrackSearch extends Component {
       await faceapi.nets.faceExpressionNet.loadFromUri(
         `${MODEL_URL}/face_expression_model-weights_manifest.json`
       );
+      await faceapi.nets.ageGenderNet.loadFromUri(
+        `${MODEL_URL}/age_gender_model-weights_manifest.json`
+      );
       this.setState({ initialized: true });
     } catch (error) {
       console.error("Error loading models:", error);
@@ -87,7 +90,8 @@ class TrackSearch extends Component {
           new faceapi.TinyFaceDetectorOptions()
         )
         .withFaceLandmarks()
-        .withFaceExpressions();
+        .withFaceExpressions()
+        .withAgeAndGender(); // Include age and gender detection
 
       const resizedDetections = faceapi.resizeResults(detections, displaySize);
       const context = canvas.getContext("2d");
@@ -98,14 +102,25 @@ class TrackSearch extends Component {
       faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
 
       resizedDetections.forEach((detection) => {
-        const { expressions } = detection;
+        const { expressions, age, gender } = detection;
         const dominantEmotion = Object.keys(expressions).reduce((a, b) =>
           expressions[a] > expressions[b] ? a : b
         );
 
+        // Log age and gender to the console
+        console.log(`Age: ${age.toFixed(0)}, Gender: ${gender}`);
+
+        // Check dominant emotion to handle music search
         if (dominantEmotion === "happy" || dominantEmotion === "sad") {
           this.handleEmotionSearch(dominantEmotion);
         }
+
+        // Draw age and gender on the canvas
+        const text = `${gender} (${age.toFixed(0)} years)`;
+        const drawBox = new faceapi.draw.DrawBox(detection.detection.box, {
+          label: text,
+        });
+        drawBox.draw(canvas);
       });
     }, 1000);
   };
