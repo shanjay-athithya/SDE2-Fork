@@ -111,7 +111,11 @@ class TrackSearch extends Component {
         console.log(`Age: ${age.toFixed(0)}, Gender: ${gender}`);
 
         // Check dominant emotion to handle music search
-        if (dominantEmotion === "happy" || dominantEmotion === "sad") {
+        if (
+          dominantEmotion === "happy" ||
+          dominantEmotion === "sad" ||
+          dominantEmotion === "neutral"
+        ) {
           this.handleEmotionSearch(dominantEmotion);
         }
 
@@ -126,10 +130,31 @@ class TrackSearch extends Component {
   };
 
   handleEmotionSearch = (emotion) => {
-    const searchTerm = emotion === "happy" ? "melody" : "motivational";
+    let searchTerm;
+
+    switch (emotion) {
+      case "happy":
+        searchTerm = "melody";
+        break;
+      case "sad":
+        searchTerm = "motivational";
+        break;
+      case "neutral":
+        searchTerm = "motivational"; // or any appropriate term for neutral
+        break;
+      default:
+        searchTerm = "motivational";
+        break;
+    }
+
     const query = `${searchTerm} ${this.state.language || "Tamil"} songs`;
     console.log("Search term based on emotion:", query);
-    this.props.searchSongs(query);
+
+    // Update the searchTerm state to autofill the input
+    this.setState({ searchTerm: query }, () => {
+      // Trigger the search function automatically
+      this.props.searchSongs(query);
+    });
   };
 
   updateSearchTerm = (e) => {
