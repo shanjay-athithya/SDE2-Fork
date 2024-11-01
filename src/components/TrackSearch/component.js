@@ -186,24 +186,30 @@ class TrackSearch extends Component {
           <div
             style={{
               display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
+              justifyContent: "flex-end", // Aligns to the right
+              alignItems: "flex-start", // Aligns to the top
+              position: "relative",
+              width: "100%",
             }}
           >
-            <div style={{ position: "relative" }}>
-              <video
-                ref={this.videoRef}
-                onPlay={this.handleVideoPlay}
-                autoPlay
-                muted
-                width="720"
-                height="560"
-                style={{ borderRadius: "10px" }}
-              />
-            </div>
+            <video
+              ref={this.videoRef}
+              onPlay={this.handleVideoPlay}
+              autoPlay
+              muted
+              width="240" // Further reduced width for smaller video
+              height="180" // Further reduced height for smaller video
+              style={{ borderRadius: "10px" }}
+            />
             <div
               ref={this.canvasRef}
-              style={{ position: "absolute", top: 0, left: 0 }}
+              style={{
+                position: "absolute",
+                top: 0, // Aligns at the top
+                right: 0, // Aligns at the right
+                width: 120, // Smaller canvas width
+                height: 90, // Smaller canvas height
+              }}
             />
           </div>
         )}
