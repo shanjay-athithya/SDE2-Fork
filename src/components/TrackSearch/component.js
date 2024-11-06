@@ -140,7 +140,7 @@ class TrackSearch extends Component {
         searchTerm = "motivational";
         break;
       case "neutral":
-        searchTerm = "motivational"; // or any appropriate term for neutral
+        searchTerm = "motivational"; 
         break;
       default:
         searchTerm = "motivational";
@@ -152,7 +152,7 @@ class TrackSearch extends Component {
 
     // Update the searchTerm state to autofill the input
     this.setState({ searchTerm: query }, () => {
-      // Trigger the search function automatically
+     
       this.props.searchSongs(query);
     });
   };
