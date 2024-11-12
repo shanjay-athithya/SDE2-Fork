@@ -1,21 +1,18 @@
-export const fetchAlbumsPending = () => {
-  return {
-    type: 'FETCH_ALBUMS_PENDING'
-  };
-};
 
-export const fetchAlbumsSuccess = (albums) => {
-  return {
-    type: 'FETCH_ALBUMS_SUCCESS',
-    albums
-  };
-};
 
 export const fetchAlbumsError = () => {
   return {
     type: 'FETCH_ALBUMS_ERROR'
   };
 };
+
+export const fetchAlbumsPending = () => {
+  return {
+    type: 'FETCH_ALBUMS_PENDING'
+  };
+};
+
+
 
 export const fetchAlbums = (accessToken) => {
   return dispatch => {
@@ -34,5 +31,12 @@ export const fetchAlbums = (accessToken) => {
     }).catch(err => {
       dispatch(fetchAlbumsError(err));
     });
+  };
+};
+
+export const fetchAlbumsSuccess = (albums) => {
+  return {
+    type: 'FETCH_ALBUMS_SUCCESS',
+    albums
   };
 };
