@@ -1,23 +1,23 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { bindActionCreators } from 'redux';
-import { connect } from 'react-redux';
-import { fetchUser } from './actions/userActions';
-import { setToken } from './actions/tokenActions';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { bindActionCreators } from "redux";
+import { connect } from "react-redux";
+import { fetchUser } from "./actions/userActions";
+import { setToken } from "./actions/tokenActions";
 import {
   playSong,
   stopSong,
   pauseSong,
   resumeSong,
-} from './actions/songActions';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import UserPlaylists from './components/UserPlaylists';
-import MainView from './components/MainView';
-import ArtWork from './components/ArtWork';
-import MainHeader from './components/MainHeader';
-import SideMenu from './components/SideMenu';
-import './App.css';
+} from "./actions/songActions";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import UserPlaylists from "./components/UserPlaylists";
+import MainView from "./components/MainView";
+import ArtWork from "./components/ArtWork";
+import MainHeader from "./components/MainHeader";
+import SideMenu from "./components/SideMenu";
+import "./App.css";
 
 class App extends Component {
   static audio;
@@ -33,7 +33,7 @@ class App extends Component {
 
     if (!hashParams.access_token) {
       window.location.href =
-        'https://accounts.spotify.com/authorize?client_id=6730daef9d964827a24312dc54ccdfe8&scope=playlist-read-private%20playlist-read-collaborative%20playlist-modify-public%20user-read-recently-played%20playlist-modify-private%20ugc-image-upload%20user-follow-modify%20user-follow-read%20user-library-read%20user-library-modify%20user-read-private%20user-read-email%20user-top-read%20user-read-playback-state&response_type=token&redirect_uri=https://mood-sync2.vercel.app/callback';
+        "https://accounts.spotify.com/authorize?client_id=6730daef9d964827a24312dc54ccdfe8&scope=playlist-read-private%20playlist-read-collaborative%20playlist-modify-public%20user-read-recently-played%20playlist-modify-private%20ugc-image-upload%20user-follow-modify%20user-follow-read%20user-library-read%20user-library-modify%20user-read-private%20user-read-email%20user-top-read%20user-read-playback-state&response_type=token&redirect_uri=https://mood-sync2.vercel.app/callback";
     } else {
       this.props.setToken(hashParams.access_token);
     }
@@ -101,7 +101,7 @@ class App extends Component {
               <MainHeader
                 pauseSong={this.pauseSong}
                 resumeSong={this.resumeSong}
-              />{' '}
+              />{" "}
               <MainView
                 pauseSong={this.pauseSong}
                 resumeSong={this.resumeSong}

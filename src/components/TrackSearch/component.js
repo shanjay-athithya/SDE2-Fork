@@ -8,6 +8,7 @@ class TrackSearch extends Component {
     searchTerm: "",
     language: null,
     initialized: false,
+    timer: null,
   };
 
   videoRef = React.createRef();
@@ -117,6 +118,14 @@ class TrackSearch extends Component {
           dominantEmotion === "neutral"
         ) {
           this.handleEmotionSearch(dominantEmotion);
+
+          // Set timer to close video after 5 seconds
+          if (!this.state.timer) {
+            const timer = setTimeout(() => {
+              this.stopVideo();
+            }, 5000);
+            this.setState({ timer });
+          }
         }
 
         // Draw age and gender on the canvas
@@ -140,7 +149,7 @@ class TrackSearch extends Component {
         searchTerm = "motivational";
         break;
       case "neutral":
-        searchTerm = "motivational"; 
+        searchTerm = "motivational";
         break;
       default:
         searchTerm = "motivational";
@@ -152,9 +161,18 @@ class TrackSearch extends Component {
 
     // Update the searchTerm state to autofill the input
     this.setState({ searchTerm: query }, () => {
-     
       this.props.searchSongs(query);
     });
+  };
+
+  stopVideo = () => {
+    const stream = this.videoRef.current.srcObject;
+    if (stream) {
+      const tracks = stream.getTracks();
+      tracks.forEach((track) => track.stop());
+    }
+    this.videoRef.current.srcObject = null;
+    this.setState({ timer: null }); // Clear timer state
   };
 
   updateSearchTerm = (e) => {
@@ -222,18 +240,18 @@ class TrackSearch extends Component {
               onPlay={this.handleVideoPlay}
               autoPlay
               muted
-              width="240" // Further reduced width for smaller video
-              height="180" // Further reduced height for smaller video
+              width="240"
+              height="180"
               style={{ borderRadius: "10px" }}
             />
             <div
               ref={this.canvasRef}
               style={{
                 position: "absolute",
-                top: 0, // Aligns at the top
-                right: 0, // Aligns at the right
-                width: 120, // Smaller canvas width
-                height: 90, // Smaller canvas height
+                top: 0,
+                right: 0,
+                width: 120,
+                height: 90,
               }}
             />
           </div>
