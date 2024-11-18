@@ -8,43 +8,37 @@ class TrackSearch extends Component {
     searchTerm: "",
     language: null,
     initialized: false,
-    timer: null,
+    detectedEmotion: null,
   };
 
   videoRef = React.createRef();
   canvasRef = React.createRef();
 
   componentDidMount() {
-    this.loadModels(); // Load models when the component mounts
+    this.loadModels();
   }
 
   checkWebGLSupport = () => {
     const canvas = document.createElement("canvas");
     const gl =
       canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-    return !!gl; // Returns true if WebGL is supported
+    return !!gl;
   };
 
   loadModels = async () => {
     if (!this.checkWebGLSupport()) {
       console.error("WebGL is not supported on this device.");
-      return; // Optionally display a message to the user
+      return;
     }
 
     const MODEL_URL = "/models";
     try {
-      await faceapi.nets.tinyFaceDetector.loadFromUri(
-        `${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`
-      );
-      await faceapi.nets.faceLandmark68Net.loadFromUri(
-        `${MODEL_URL}/face_landmark_68_model-weights_manifest.json`
-      );
-      await faceapi.nets.faceExpressionNet.loadFromUri(
-        `${MODEL_URL}/face_expression_model-weights_manifest.json`
-      );
-      await faceapi.nets.ageGenderNet.loadFromUri(
-        `${MODEL_URL}/age_gender_model-weights_manifest.json`
-      );
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+        faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL),
+      ]);
       this.setState({ initialized: true });
     } catch (error) {
       console.error("Error loading models:", error);
@@ -54,14 +48,10 @@ class TrackSearch extends Component {
   startVideo = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (this.videoRef.current) {
-        this.videoRef.current.srcObject = stream;
-        this.videoRef.current.onloadedmetadata = () => {
-          this.videoRef.current.play();
-        };
-      } else {
-        console.error("Video element not found.");
-      }
+      this.videoRef.current.srcObject = stream;
+      this.videoRef.current.onloadedmetadata = () => {
+        this.videoRef.current.play();
+      };
     } catch (err) {
       console.error("Error accessing webcam:", err);
     }
@@ -71,7 +61,7 @@ class TrackSearch extends Component {
     if (!this.canvasRef.current) return;
 
     const canvas = faceapi.createCanvasFromMedia(this.videoRef.current);
-    this.canvasRef.current.innerHTML = ""; // Clear any previous canvas
+    this.canvasRef.current.innerHTML = "";
     this.canvasRef.current.appendChild(canvas);
 
     const displaySize = {
@@ -84,58 +74,61 @@ class TrackSearch extends Component {
   };
 
   detectEmotions = (canvas, displaySize) => {
-    setInterval(async () => {
-      const detections = await faceapi
-        .detectAllFaces(
-          this.videoRef.current,
-          new faceapi.TinyFaceDetectorOptions()
-        )
-        .withFaceLandmarks()
-        .withFaceExpressions()
-        .withAgeAndGender(); // Include age and gender detection
+    const startDetection = () => {
+      this.detectionInterval = setInterval(async () => {
+        const detections = await faceapi
+          .detectAllFaces(
+            this.videoRef.current,
+            new faceapi.TinyFaceDetectorOptions()
+          )
+          .withFaceLandmarks()
+          .withFaceExpressions();
 
-      const resizedDetections = faceapi.resizeResults(detections, displaySize);
-      const context = canvas.getContext("2d");
-      context.clearRect(0, 0, canvas.width, canvas.height);
-
-      faceapi.draw.drawDetections(canvas, resizedDetections);
-      faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
-      faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
-
-      resizedDetections.forEach((detection) => {
-        const { expressions, age, gender } = detection;
-        const dominantEmotion = Object.keys(expressions).reduce((a, b) =>
-          expressions[a] > expressions[b] ? a : b
+        const resizedDetections = faceapi.resizeResults(
+          detections,
+          displaySize
         );
+        const context = canvas.getContext("2d");
+        context.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Log age and gender to the console
-        console.log(`Age: ${age.toFixed(0)}, Gender: ${gender}`);
+        faceapi.draw.drawDetections(canvas, resizedDetections);
+        faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+        faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
 
-        // Check dominant emotion to handle music search
-        if (
-          dominantEmotion === "happy" ||
-          dominantEmotion === "sad" ||
-          dominantEmotion === "neutral"
-        ) {
+        resizedDetections.forEach((detection) => {
+          const { expressions } = detection;
+          const dominantEmotion = Object.keys(expressions).reduce((a, b) =>
+            expressions[a] > expressions[b] ? a : b
+          );
+
+          console.log(`Detected Emotion: ${dominantEmotion}`);
+          this.setState({ detectedEmotion: dominantEmotion });
+
+          clearInterval(this.detectionInterval);
           this.handleEmotionSearch(dominantEmotion);
 
-          // Set timer to close video after 5 seconds
-          if (!this.state.timer) {
-            const timer = setTimeout(() => {
-              this.stopVideo();
-            }, 5000);
-            this.setState({ timer });
-          }
-        }
-
-        // Draw age and gender on the canvas
-        const text = `${gender} (${age.toFixed(0)} years)`;
-        const drawBox = new faceapi.draw.DrawBox(detection.detection.box, {
-          label: text,
+          this.restartDetectionAfterDelay(5 * 60 * 1000);
         });
-        drawBox.draw(canvas);
-      });
-    }, 1000);
+      }, 1000);
+    };
+
+    startDetection();
+  };
+
+  restartDetectionAfterDelay = (delay) => {
+    console.log(`Pausing detection for ${delay / 60000} minutes...`);
+    clearTimeout(this.reactivationTimeout);
+
+    if (this.videoRef.current && this.videoRef.current.srcObject) {
+      const tracks = this.videoRef.current.srcObject.getTracks();
+      tracks.forEach((track) => track.stop());
+      this.videoRef.current.srcObject = null;
+    }
+
+    this.reactivationTimeout = setTimeout(() => {
+      console.log("Restarting detection...");
+      this.startVideo();
+    }, delay);
   };
 
   handleEmotionSearch = (emotion) => {
@@ -149,58 +142,50 @@ class TrackSearch extends Component {
         searchTerm = "motivational";
         break;
       case "neutral":
-        searchTerm = "motivational";
+        searchTerm = "relaxing";
         break;
       default:
-        searchTerm = "motivational";
+        searchTerm = "upbeat";
         break;
     }
 
     const query = `${searchTerm} ${this.state.language || "Tamil"} songs`;
-    console.log("Search term based on emotion:", query);
+    console.log("Auto-search term based on emotion:", query);
 
-    // Update the searchTerm state to autofill the input
+    // Update state and trigger search function
     this.setState({ searchTerm: query }, () => {
-      this.props.searchSongs(query);
+      this.triggerSearch(query); // Trigger the search
     });
   };
 
-  stopVideo = () => {
-    const stream = this.videoRef.current.srcObject;
-    if (stream) {
-      const tracks = stream.getTracks();
-      tracks.forEach((track) => track.stop());
-    }
-    this.videoRef.current.srcObject = null;
-    this.setState({ timer: null }); // Clear timer state
+  triggerSearch = (query) => {
+    const token = this.props.token || ""; // Include token if provided
+    this.props.searchSongs(query, token);
   };
 
   updateSearchTerm = (e) => {
-    this.setState({
-      searchTerm: e.target.value,
-    });
+    this.setState({ searchTerm: e.target.value });
   };
 
   setLanguage = (language) => {
-    this.setState(
-      {
-        searchTerm: language,
-        language,
-      },
-      () => {
-        if (!this.state.initialized) {
-          this.loadModels().then(this.startVideo); // Load models and start video on language selection
-        } else {
-          this.startVideo(); // Start video if already initialized
-        }
+    this.setState({ language }, () => {
+      if (!this.state.initialized) {
+        this.loadModels().then(this.startVideo);
+      } else {
+        this.startVideo();
       }
-    );
+    });
   };
 
   render() {
     return (
       <div className="track-search-container">
-        <form onSubmit={(e) => e.preventDefault()}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            this.triggerSearch(this.state.searchTerm);
+          }}
+        >
           <input
             onChange={this.updateSearchTerm}
             type="text"
@@ -214,34 +199,21 @@ class TrackSearch extends Component {
                   type="radio"
                   name="language"
                   onChange={() => this.setLanguage(lang)}
-                  checked={this.state.searchTerm === lang}
+                  checked={this.state.language === lang}
                 />
                 {lang}
               </label>
             ))}
           </div>
-          <button onClick={() => this.setLanguage(this.state.language)}>
-            <i className="fa fa-search search" aria-hidden="true" />
-          </button>
         </form>
 
         {this.state.language && this.state.initialized && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end", // Aligns to the right
-              alignItems: "flex-start", // Aligns to the top
-              position: "relative",
-              width: "100%",
-            }}
-          >
+          <div style={{ position: "relative", width: "100%" }}>
             <video
               ref={this.videoRef}
               onPlay={this.handleVideoPlay}
               autoPlay
               muted
-              width="240"
-              height="180"
               style={{ borderRadius: "10px" }}
             />
             <div
@@ -249,9 +221,9 @@ class TrackSearch extends Component {
               style={{
                 position: "absolute",
                 top: 0,
-                right: 0,
-                width: 120,
-                height: 90,
+                left: 0,
+                width: "100%",
+                height: "100%",
               }}
             />
           </div>
@@ -263,6 +235,7 @@ class TrackSearch extends Component {
 
 TrackSearch.propTypes = {
   searchSongs: PropTypes.func.isRequired,
+  token: PropTypes.string,
 };
 
 export default TrackSearch;

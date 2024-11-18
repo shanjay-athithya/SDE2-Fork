@@ -4,16 +4,40 @@ import moment from "moment";
 import "./SongList.css";
 
 class SongList extends Component {
-  componentWillReceiveProps(nextProps) {
+  constructor(props) {
+    super(props);
+    this.state = {
+      currentSongIndex: 0, // Track the index of the currently playing song
+    };
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    // Automatically fetch songs if token or viewType changes
     if (
-      nextProps.token !== "" &&
-      !nextProps.fetchSongsError &&
-      nextProps.fetchSongsPending &&
-      nextProps.viewType === "songs"
+      this.props.token !== prevProps.token &&
+      !this.props.fetchSongsError &&
+      this.props.fetchSongsPending &&
+      this.props.viewType === "songs"
     ) {
-      this.props.fetchSongs(nextProps.token);
+      this.props.fetchSongs(this.props.token);
     }
   }
+
+  handleSongEnd = () => {
+    const { songs, audioControl } = this.props;
+    const { currentSongIndex } = this.state;
+
+    const nextSongIndex = (currentSongIndex + 1) % songs.length; // Move to the next song, loop back if at the end
+    this.setState({ currentSongIndex: nextSongIndex });
+
+    audioControl(songs[nextSongIndex]); // Play the next song
+  };
+
+  playSong = (song, index) => {
+    const { audioControl } = this.props;
+    this.setState({ currentSongIndex: index });
+    audioControl(song); // Play the selected song
+  };
 
   msToMinutesAndSeconds(ms) {
     const minutes = Math.floor(ms / 60000);
@@ -23,34 +47,18 @@ class SongList extends Component {
 
   renderSongs() {
     return this.props.songs.map((song, i) => {
+      const isActive = i === this.state.currentSongIndex;
       const buttonClass =
-        song.track.id === this.props.songId && !this.props.songPaused
+        isActive && !this.props.songPaused
           ? "fa-pause-circle-o"
           : "fa-play-circle-o";
 
       return (
         <li
-          className={
-            song.track.id === this.props.songId
-              ? "active user-song-item"
-              : "user-song-item"
-          }
+          className={isActive ? "active user-song-item" : "user-song-item"}
           key={i}
         >
-          <div
-            onClick={() => {
-              song.track.id === this.props.songId &&
-                this.props.songPlaying &&
-                this.props.songPaused
-                ? this.props.resumeSong()
-                : this.props.songPlaying &&
-                  !this.props.songPaused &&
-                  song.track.id === this.props.songId
-                  ? this.props.pauseSong()
-                  : this.props.audioControl(song);
-            }}
-            className="play-song"
-          >
+          <div onClick={() => this.playSong(song, i)} className="play-song">
             <i className={`fa ${buttonClass} play-btn`} aria-hidden="true" />
           </div>
 
@@ -64,14 +72,8 @@ class SongList extends Component {
               {this.props.songAddedId === song.track.id ? (
                 <i className="fa fa-check add-song" aria-hidden="true" />
               ) : (
-                  <i className="fa fa-plus add-song" aria-hidden="true" />
-                )}
-            </p>
-          )}
-
-          {this.props.viewType === "songs" && (
-            <p className="add-song">
-              <i className="fa fa-check" aria-hidden="true" />
+                <i className="fa fa-plus add-song" aria-hidden="true" />
+              )}
             </p>
           )}
 
@@ -100,6 +102,8 @@ class SongList extends Component {
   }
 
   render() {
+    const { songs } = this.props;
+
     return (
       <div>
         <div className="song-header-container">
@@ -121,10 +125,19 @@ class SongList extends Component {
             </p>
           </div>
         </div>
-        {this.props.songs &&
+        {songs &&
           !this.props.fetchSongsPending &&
           !this.props.fetchPlaylistSongsPending &&
           this.renderSongs()}
+
+        {/* Hidden Audio Element for Playback */}
+        {songs.length > 0 && songs[this.state.currentSongIndex] && (
+          <audio
+            src={songs[this.state.currentSongIndex].track.preview_url}
+            autoPlay
+            onEnded={this.handleSongEnd}
+          />
+        )}
       </div>
     );
   }
@@ -135,12 +148,12 @@ SongList.propTypes = {
   token: PropTypes.string,
   songAddedId: PropTypes.string,
   songId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  songs: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),
+  songs: PropTypes.array.isRequired,
   fetchSongsError: PropTypes.bool,
   fetchSongsPending: PropTypes.bool,
   fetchPlaylistSongsPending: PropTypes.bool,
   fetchSongs: PropTypes.func,
-  audioControl: PropTypes.func,
+  audioControl: PropTypes.func.isRequired,
   songPaused: PropTypes.bool,
   songPlaying: PropTypes.bool,
   resumeSong: PropTypes.func,
