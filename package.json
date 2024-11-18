@@ -1,5 +1,5 @@
 {
-  "name": "spotify",
+  "name": "Mood-Sync",
   "version": "0.1.0",
   "private": true,
   "main": "build/main.js",
